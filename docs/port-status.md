@@ -36,17 +36,43 @@ CONFIG_AUTOBACKUP_ROM
 - Both stop at `ASSERT: Resource/EstimatedSize.c:1484 (RscMgr)` — the standard
   QEMU stop that `patches_80d.gdb` is meant to skip.
 
+## QEMU boot — what actually happens (measured)
+
+Driving qemu-eos directly (suspended + `gdb-multiarch` applying
+`scripts/patches_80d.gdb`), with sd+cf drives attached:
+
+1. DryOS bootloader finds the card bootable, loads our `autoexec.bin`
+   (`File size : 0x3AD60`), `Now jump to AUTOEXEC.BIN!!`.
+2. ML's early hijack runs, hands back to DryOS: `K350 READY`,
+   `[SF] InstallSerialFlash ... 0x800000` (our SFDATA), `K350 ICU Firmware
+   Version 1.0.3 ( 6.2.4 )`.
+3. **The EstimatedSize breakpoint patch is enough to pass the fatal assert** at
+   `Resource/EstimatedSize.c:1484`. Boot then continues: `[DISP]`, SD init,
+   filesystem mount, `[RSC] GetEstimatedSizeOfMovie ...`.
+4. Boot then **hangs at capture/movie init**, and the emulated **LCD never
+   renders** — every `screendump` is a uniform gray 720×480 framebuffer.
+
+### GDB handshake notes (resolved)
+
+- gdb-multiarch attaches and `set`/`continue` work **as long as qemu is stable**.
+  The earlier "target is running" failures were a symptom of qemu dying early
+  (`CF init failed`) when no `-drive if=sd` / `-drive if=ide` were attached.
+- **Do not apply the three `set *(int*)...=0x4770` ROM writes at reset** — they
+  stall ML's early boot (never reaches `K350 READY`). The EstimatedSize
+  breakpoint alone is what gets past the assert. See `scripts/patches_80d.gdb`.
+
 ## Known gaps / next work
 
-1. **GDB-patched boot handshake.** Applying `patches_80d.gdb` over
-   `gdb-multiarch` currently stalls at the ML jump because gdb reports the
-   target "running" right after connect and refuses `set`/`continue`. To try:
-   - `arm-none-eabi-gdb` instead of `gdb-multiarch`;
-   - a `stepi` to force a sync before the memory writes;
-   - a python-gdb driver that waits for a clean stop event.
-2. **DIGIC 6 display emulation is partial upstream** — even past the assert, a
-   fully rendered ML GUI may not appear in QEMU. QEMU is best here for
-   boot/stub/code-path work; GUI/feature verification ultimately wants the camera.
+1. **No GUI in QEMU for the 80D.** DIGIC 6 display emulation is incomplete
+   upstream — there are **no reference screenshots for any DIGIC 6 camera** in
+   `qemu-eos/.../expected_test_output` (only DIGIC 4/5: 50D, 60D, 100D, 500D,
+   700D, 5D3). QEMU is useful here for boot/stub/code-path work, **not** for
+   seeing or verifying the ML GUI. Real GUI/feature verification needs the camera.
+2. **Boot hang at capture/movie init** — likely needs the capture/develop prep
+   functions stubbed, but applying those stubs at reset stalls boot (above).
+   Applying them at a later breakpoint is unexplored.
+3. **DIGIC 6 display/compositor emulation** in qemu-eos would be the upstream
+   work required to ever get a GUI screenshot for this camera.
 3. **SRM allocator** (`CONFIG_MEMORY_SRM_NOT_WORKING`) — find `SRM_BUFFER_SIZE`
    and the real allocator entry points.
 4. **State object hooks** (`CONFIG_STATE_OBJECT_HOOKS`).
