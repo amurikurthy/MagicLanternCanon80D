@@ -1,0 +1,62 @@
+diff --git a/src/debug.c b/src/debug.c
+index 13f98688..ff8f9074 100644
+--- a/src/debug.c
++++ b/src/debug.c
+@@ -345,10 +345,57 @@ void guimode_test()
+ }
+ #endif
+ 
++#ifdef CONFIG_80D
++/* clean-HDMI experiment 02: background task that keeps Canon's GUI compositor
++ * layer (Layer B in the XimrContext) disabled by invalidating its MARV
++ * signature and re-rendering, so the AF box / Canon overlays drop out of the
++ * LiveView + HDMI feed. Toggled from run_test(); self-restores as a safety. */
++static volatile int ml_hide_gui_layer = 0;
++static void ml_hide_gui_task(void *unused)
++{
++    extern int XimrExe(void *);
++    /* Layer B descriptor = ctx + 0x5C; its MARV signature = desc + 0x0C */
++    volatile uint32_t *lb_sig = (volatile uint32_t *)((uint32_t) XIMR_CONTEXT + 0x5C + 0x0C);
++    int guard = 0;
++    while (ml_hide_gui_layer && guard++ < 600)      /* ~60s safety cap */
++    {
++        *lb_sig = 0;                                /* invalidate Canon GUI layer */
++        XimrExe((void *) XIMR_CONTEXT);
++        msleep(100);
++    }
++    *lb_sig = 0x5652414D;                           /* restore 'MARV' */
++    XimrExe((void *) XIMR_CONTEXT);
++    ml_hide_gui_layer = 0;
++}
++#endif
++
+ static void run_test()
+ {
+     DryosDebugMsg(0, 15, "run_test fired");
+ 
++#ifdef CONFIG_80D
++    /* Experiment 02 (clean-HDMI): toggle hiding Canon's GUI compositor layer.
++     * XimrContext @ XIMR_CONTEXT (0x57a74). Dump analysis: it holds two
++     * 0x5C-byte layer descriptors, MARV embedded at desc+0x0C.
++     *   Layer A @ ctx+0x00 : bitmap 0x41785B00, has opacity  -> image/video
++     *   Layer B @ ctx+0x5C : bitmap 0x043ED100 (= rgb_vram_info) -> Canon GUI
++     * We invalidate Layer B's MARV signature and re-render via XimrExe, from a
++     * background task, so you can go to LiveView and watch the HDMI feed.
++     * Trigger again to stop (auto-restores after ~60s). EXPERIMENTAL: if the
++     * camera freezes, pull the battery (display-only, no harm). */
++    ml_hide_gui_layer = !ml_hide_gui_layer;
++    if (ml_hide_gui_layer)
++    {
++        bmp_printf(FONT_LARGE, 0, 50, "GUI layer: HIDING - go to LiveView");
++        bmp_printf(FONT_LARGE, 0, 80, "click Don't Click Me again to stop");
++        task_create("ml_hide_gui", 0x1e, 0x2000, ml_hide_gui_task, 0);
++    }
++    else
++    {
++        bmp_printf(FONT_LARGE, 0, 50, "GUI layer: restoring");
++    }
++#endif
++
+     // This is useful for devs, via normal users, as it dumps the internal
+     // log to disk as log0000.log.  This holds DryosDebugMsg() messages,
+     // before sending to uart.  Holds more events than you see on uart,
