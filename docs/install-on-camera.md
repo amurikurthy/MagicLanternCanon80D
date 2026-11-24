@@ -44,6 +44,38 @@ untouched.
 4. Power-cycle. If ML loads, you get its UI; if `autoexec.bin` is bad the camera
    hangs → pull battery, reformat card, Canon boots normally.
 
+## Boot-flag method — findings (the current hard blocker)
+
+Researched the available ways to set `BOOT=1` on the 80D:
+
+- **`BOOTF80D.FIR`** (a1ex, 2017) is the purpose-built file — it only toggles the
+  boot flag, works on any firmware version. It lived at
+  `http://a1ex.magiclantern.fm/bleeding-edge/80D/BOOTF80D.FIR`. **That host is
+  long offline; no mirror and no published MD5 exist.** So there is no
+  *verified* copy obtainable. (If any copy is found, it can be structurally
+  vetted: FIR header firmware id must be `0x80000350`, tiny encrypted DIGIC 6
+  payload, cross-checkable against the known-good `DUMP_80D.FIR`.)
+- **MLinstall** (`petabyt/mlinstall`) enables the boot disk over USB via
+  `ptp_eos_evproc_run("EnableBootDisk")` — i.e. running a Canon eventproc over
+  PTP. That requires the camera to be in **developer / evproc-execution mode**,
+  which on a stock 80D is disabled and is unlocked by the same class of ML FIR
+  that is no longer available. No camera model table in its source; it just
+  tries the evproc and fails if evproc mode isn't unlocked. So MLinstall does
+  **not** bypass the missing-FIR problem for a stock 80D.
+- **Self-building an installer FIR** from `magiclantern_simplified`: the
+  per-cam installer framework exists and the DIGIC 6 boot-flag NVRAM address
+  (`0xFC040000`) is already correct for the 80D, with 7D2 as a DIGIC 6
+  precedent. BUT the FIR-assembly tooling (`dumper/build_fir.py`) is **not in
+  this repo**, it needs Canon's official `80D00103.FIR` as input, and no 80D
+  installer was ever shipped/validated upstream. A self-built one would be
+  **unvalidated** and un-testable in QEMU — flashing it is a hard-brick gamble.
+
+**Conclusion:** there is currently no verified, obtainable, safe way to enable
+the boot flag on the 80D. The realistic route is the ML community (someone who
+installed ML on an 80D likely still has `BOOTF80D.FIR`); verify any copy
+structurally before flashing. Do not flash an unverified or self-built,
+never-validated boot-flag FIR.
+
 ## Honest blockers before this is safe to attempt
 
 - **No in-tree 80D boot-flag installer.** This is the single biggest gap between
