@@ -93,11 +93,33 @@ Investigated whether the FIR could be recreated instead of downloaded:
   crypto), and cannot manufacture or safely validate a flashable encrypted FIR.
   So QEMU can't substitute for a genuine `BOOTF80D.FIR`.
 
-**Conclusion:** there is currently no verified, obtainable, safe way to enable
-the boot flag on the 80D. The realistic route is the ML community (someone who
-installed ML on an 80D likely still has `BOOTF80D.FIR`); verify any copy
-structurally before flashing. Do not flash an unverified or self-built,
-never-validated boot-flag FIR.
+### UPDATE: a verified copy was recovered (Wayback Machine)
+
+`BOOTF80D.FIR` was recovered from the Internet Archive. Verification:
+
+- Structural: FIR header firmware id `0x80000350` (80D), internally size-
+  consistent (0xCF5C), footer ends exactly at EOF, header-table layout and the
+  last 16 bytes byte-identical to the known-good `DUMP_80D.FIR` (same a1ex
+  tooling), payload encrypted (entropy 7.997).
+- Corroboration: **five independent archive snapshots spanning 2017–2025 are
+  byte-for-byte identical** — a de-facto checksum consensus in place of the
+  never-published MD5.
+
+Canonical reference hashes for this file (size 53084 bytes):
+```
+MD5     d9b8011f088648ba4ff6ceca982e127f
+SHA256  098c0d6adc450a54550f0d4ae1d37d561e921c9da520d00d8843beb1047828ad
+```
+This is as trustworthy as possible short of Canon's key. The FIR itself is NOT
+committed here (it is a1ex's encrypted Canon-derived binary and is gitignored).
+Keep a private backup — Wayback copies can vanish.
+
+**Conclusion (updated):** a verified `BOOTF80D.FIR` has now been recovered and
+cross-checked (see above) — so obtaining a trustworthy boot-flag FIR is no
+longer the blocker. The remaining risk is inherent to flashing any FIR (the one
+irreversible step) and to running an incomplete port. Still: only flash a copy
+whose hashes match the reference above; never flash a self-built or unverified
+boot-flag FIR.
 
 ## Honest blockers before this is safe to attempt
 
