@@ -3,6 +3,19 @@
 Camera: **Canon EOS 80D**, firmware **1.0.3**, DIGIC 6, internal codename `K350`,
 model ID `0x350` (FIRMWARE_ID `0x80000350`), `ROMBASEADDR 0xFE0A0000`.
 
+## IMPORTANT: the ML GUI works on the real 80D (QEMU just can't show it)
+
+The 80D port was written by **kitor** (core ML dev, 191 commits) — commit
+`4c971353 "80D_103 full build"` (2023-05-11). He posted a photo of ML's menu
+running on a real 80D, calling it "on par with 750D" (working: Global Draw,
+Movie Tweaks, Shoot Preferences, DOF, Lens info, Screenshot, Show tasks, Free
+Memory, Shutter Count). The port is maintained in-tree through 2026.
+
+So: **this port shows a working ML menu on actual hardware.** The blank/gray
+framebuffer we see in QEMU is a DIGIC 6 *display-emulation* gap, NOT the state
+of the port on the camera. Do not read "no GUI in QEMU" as "no GUI on the 80D."
+What's incomplete is advanced capture (image capture, SRM, raw) — not the UI.
+
 ## What exists upstream
 
 `magiclantern_simplified/platform/80D.103/` is a real, early-to-mid-stage port:
