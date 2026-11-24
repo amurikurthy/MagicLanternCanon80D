@@ -70,6 +70,29 @@ Researched the available ways to set `BOOT=1` on the 80D:
   installer was ever shipped/validated upstream. A self-built one would be
   **unvalidated** and un-testable in QEMU — flashing it is a hard-brick gamble.
 
+### Why we can't just build/forge the FIR (the cryptographic wall)
+
+Investigated whether the FIR could be recreated instead of downloaded:
+
+- The working `DUMP_80D.FIR` is **AES-encrypted end to end** — entropy 7.91–7.96
+  across every 4 KB block, zero plaintext/code/padding anywhere. DIGIC 6 FIRs
+  are encrypted with Canon's firmware key.
+- To create a *new* FIR (boot-flag payload instead of the dumper), the payload
+  must be encrypted with **Canon's DIGIC 6 key**, which is not public and can't
+  be derived. The repo's FIR tools (`tools/indy/fir_tool2.py`, `dump_fir.py`)
+  are 2010–2012 **XOR-cipher** tools for DIGIC 2–4 only — useless for DIGIC 6.
+- a1ex could build `BOOTF80D.FIR` because the ML team holds the DIGIC 6 key in
+  their private `build_fir.py`/dumper tooling (not in this repo). Without that
+  key, a camera-accepted FIR cannot be forged.
+
+### What QEMU can and cannot do here
+
+- CAN: run the boot-flag *code path* (`EnableBootDisk`, the NVRAM region at
+  `0xFC040000`) to study/validate the logic.
+- CANNOT: emulate FIR decryption / the firmware-update flow (qemu-eos has no FIR
+  crypto), and cannot manufacture or safely validate a flashable encrypted FIR.
+  So QEMU can't substitute for a genuine `BOOTF80D.FIR`.
+
 **Conclusion:** there is currently no verified, obtainable, safe way to enable
 the boot flag on the 80D. The realistic route is the ML community (someone who
 installed ML on an 80D likely still has `BOOTF80D.FIR`); verify any copy
