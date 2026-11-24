@@ -30,9 +30,17 @@ commands
   continue
 end
 
-# --- DISABLED: these stall early boot when applied at reset (see findings) ---
-# set *(int*)0xFE0D91C8 = 0x4770   # startupPrepareCapture
-# set *(int*)0xFE1C0BF4 = 0x4770   # SHT_CAPTURE_PATH_InitializeCapturePath
-# set *(int*)0xFE0D52C2 = 0x4770   # startupPrepareDevelop
+# Capture/develop stubs: apply at Canon-fw ENTRY, not at reset.
+# At reset they corrupt ML's reboot.c relocation and stall boot at the jump.
+# Applied here they boot cleanly — but note they do NOT clear the RSC
+# movie-size hang (that's an emulation-data gap; see docs/port-status.md).
+tbreak *0xFE0A0000
+commands
+  silent
+  set *(int*)0xFE0D91C8 = 0x4770   # startupPrepareCapture
+  set *(int*)0xFE1C0BF4 = 0x4770   # SHT_CAPTURE_PATH_InitializeCapturePath
+  set *(int*)0xFE0D52C2 = 0x4770   # startupPrepareDevelop
+  continue
+end
 
 continue

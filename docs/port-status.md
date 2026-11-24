@@ -86,6 +86,28 @@ Driving qemu-eos directly (suspended + `gdb-multiarch` applying
    Applying them at a later breakpoint is unexplored.
 3. **DIGIC 6 display/compositor emulation** in qemu-eos would be the upstream
    work required to ever get a GUI screenshot for this camera.
+
+### Root cause of the blank QEMU GUI (diagnosed)
+
+Instrumented boot (`-d io`, EstimatedSize + capture/develop patches) shows the
+blank screen is a **boot hang, not a display bug**:
+
+- The firmware writes **zero** display registers (`0xD2030108` "BMP VRAM",
+  `0xD2013800` "Display resolution" never appear in the io log) — because it
+  never reaches display init.
+- It hangs looping on `[RSC] ERROR GetEstimatedSizeOfMovie NOT Exist Size or
+  FrameRate K347` — the resource manager can't compute movie-record buffer
+  sizes because that data isn't emulated (it comes from hardware/config qemu
+  doesn't model).
+- The capture/develop ROM stubs (`0xFE0D91C8`, `0xFE1C0BF4`, `0xFE0D52C2`) must
+  be applied at the Canon-fw entry (`tbreak *0xFE0A0000`), NOT at reset — at
+  reset they corrupt ML's `reboot.c` relocation and stall boot at the jump.
+  Even applied correctly, they do not clear the RSC hang.
+
+Upstream's 80D patch script does NOT patch the RSC movie-size path, because on
+real hardware it works (kitor's on-camera photo). It only hangs in emulation.
+This is why no DIGIC 6 cam has GUI reference screenshots. Getting a GUI in QEMU
+would require faking the movie-size tables / MPU path — deep, open work.
 3. **SRM allocator** (`CONFIG_MEMORY_SRM_NOT_WORKING`) — find `SRM_BUFFER_SIZE`
    and the real allocator entry points.
 4. **State object hooks** (`CONFIG_STATE_OBJECT_HOOKS`).
