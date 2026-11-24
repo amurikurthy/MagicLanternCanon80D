@@ -1,0 +1,42 @@
+diff --git a/src/debug.c b/src/debug.c
+index 13f98688..e73700bb 100644
+--- a/src/debug.c
++++ b/src/debug.c
+@@ -349,6 +349,37 @@ static void run_test()
+ {
+     DryosDebugMsg(0, 15, "run_test fired");
+ 
++#ifdef CONFIG_80D
++    /* Compositor RE (clean-HDMI project): map the Ximr compositor so we can
++     * find + disable Canon's GUI layer (which carries the AF box).
++     * Run this in LiveView with the AF box visible, then send ML/LOGS/XIMR.BIN
++     * and ML/LOGS/MARV0.BIN from the card. Read-only: only dumps memory. */
++    extern struct MARV *rgb_vram_info;
++    extern struct MARV *_rgb_vram_info;
++    FILE * xf = FIO_CreateFile("ML/LOGS/XIMR.BIN");
++    if (xf)
++    {
++        FIO_WriteFile(xf, (void *) XIMR_CONTEXT, 0x400);
++        FIO_CloseFile(xf);
++    }
++    bmp_printf(FONT_LARGE, 0, 50, "XIMR=%x rgb=%x _rgb=%x",
++               (uint32_t) XIMR_CONTEXT, (uint32_t) rgb_vram_info,
++               (uint32_t) _rgb_vram_info);
++    if (rgb_vram_info)
++    {
++        bmp_printf(FONT_LARGE, 0, 80, "MARV sig=%x data=%x w=%d h=%d",
++            rgb_vram_info->signature, (uint32_t) rgb_vram_info->bitmap_data,
++            rgb_vram_info->width, rgb_vram_info->height);
++        FILE * mf = FIO_CreateFile("ML/LOGS/MARV0.BIN");
++        if (mf)
++        {
++            FIO_WriteFile(mf, (void *) rgb_vram_info, 0x40);
++            FIO_CloseFile(mf);
++        }
++    }
++    bmp_printf(FONT_LARGE, 0, 110, "Dump done - send ML/LOGS/*.BIN");
++#endif
++
+     // This is useful for devs, via normal users, as it dumps the internal
+     // log to disk as log0000.log.  This holds DryosDebugMsg() messages,
+     // before sending to uart.  Holds more events than you see on uart,
