@@ -1,0 +1,27 @@
+# ---------------------------------------------------------------------------
+# NEVER commit camera firmware / ROM dumps. They are copyrighted Canon code.
+# ---------------------------------------------------------------------------
+*.BIN
+*.bin
+*.FIR
+*.fir
+*.MD5
+RESCUE.LOG
+roms/
+
+# Build artifacts / checkouts (these are reproduced by the scripts)
+magiclantern_simplified/
+qemu-eos/
+qemu-eos-build/
+*.qcow2
+*.qcow2.xz
+*.raw
+*.ppm
+*.o
+*.a
+build/
+
+# Editor / OS cruft
+*.swp
+.DS_Store
+__pycache__/
