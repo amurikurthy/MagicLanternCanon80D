@@ -108,6 +108,35 @@ Upstream's 80D patch script does NOT patch the RSC movie-size path, because on
 real hardware it works (kitor's on-camera photo). It only hangs in emulation.
 This is why no DIGIC 6 cam has GUI reference screenshots. Getting a GUI in QEMU
 would require faking the movie-size tables / MPU path — deep, open work.
+
+### ROOT CAUSE (fully traced): incomplete MPU emulation
+
+Deep trace of the hang:
+1. Caught the stuck PC — the firmware sits in the DryOS **idle loop**
+   (`0xFE2090E4`: spin on a flag + `wfi`). So the **startup task has blocked**,
+   leaving nothing runnable; display init is never reached.
+2. The `GetEstimatedSizeOfMovie` "NOT Exist" errors are a **red herring** —
+   disassembly (`0xFE19B1AE`+) shows that function logs the error and returns a
+   default (`0x1CFC`), it does not hang. It reads a movie-config **table that is
+   empty in emulation**.
+3. That table is normally filled from the **MPU** (the camera's secondary
+   processor). qemu-eos emulates the MPU with canned "spells", and the 80D uses
+   only the minimal **`generic.h`** spell set (based on the DIGIC 4 60D).
+4. `generic.h`'s own header documents the result verbatim:
+   *"Assert at EstimatedSize, dumpf works: 5D3 6D 70D 80D 100D EOSM2."* and lists
+   only DIGIC 4/5 cams under "menu navigation works". **The ML team themselves
+   only ever got the 80D to the EstimatedSize assert + ROM dump in QEMU — never
+   to GUI.** No DIGIC 6 cam has a dedicated MPU spell set.
+
+**Conclusion:** the blank QEMU GUI is not a display bug and not a quick patch —
+it's that the 80D's MPU boot dialogue isn't emulated, so startup blocks waiting
+for config/events that never arrive. This is a known, unsolved DIGIC 6 limitation.
+
+**The one real path to fix it:** build a proper 80D MPU spell set by capturing
+the real MPU<->CPU messages from an actual 80D (ML can log them on-camera, now
+that the boot flag is set) and encoding them into qemu-eos. That is a
+substantial, iterative camera+emulator RE project — the same per-camera work the
+ML team does, which has not been done for any DIGIC 6 body.
 3. **SRM allocator** (`CONFIG_MEMORY_SRM_NOT_WORKING`) — find `SRM_BUFFER_SIZE`
    and the real allocator entry points.
 4. **State object hooks** (`CONFIG_STATE_OBJECT_HOOKS`).
